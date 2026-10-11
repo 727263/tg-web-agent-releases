@@ -161,8 +161,18 @@ if ! id mtproxy >/dev/null 2>&1; then
   useradd --system --home-dir /etc/mtproxy --shell /usr/sbin/nologin mtproxy
 fi
 install -d -m 0755 /etc/mtproxy
-curl -fsSL https://core.telegram.org/getProxySecret -o /etc/mtproxy/proxy-secret
-curl -fsSL https://core.telegram.org/getProxyConfig -o /etc/mtproxy/proxy-multi.conf
+fetch_mtproxy() {
+  local url="$1" dest="$2" name="$3"
+  if curl -fsSL --max-time 20 -o "${dest}" "${url}"; then
+    return 0
+  fi
+  info "连不上 core.telegram.org，改从安装仓库下载 ${name}"
+  curl -fsSL --max-time 30 -o "${dest}" \
+    "https://raw.githubusercontent.com/${releases_repo}/main/mtproxy/${name}" \
+    || { echo "下载 ${name} 失败" >&2; exit 1; }
+}
+fetch_mtproxy "https://core.telegram.org/getProxySecret" /etc/mtproxy/proxy-secret proxy-secret
+fetch_mtproxy "https://core.telegram.org/getProxyConfig" /etc/mtproxy/proxy-multi.conf proxy-multi.conf
 chmod 0644 /etc/mtproxy/proxy-secret /etc/mtproxy/proxy-multi.conf
 
 if [[ ! -x /usr/local/bin/mtproxy ]]; then
